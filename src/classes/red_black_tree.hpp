@@ -4,6 +4,7 @@ using namespace std;
 #include "storage.hpp"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include <stack>
 namespace s21{
     enum Color{
         BLACK,
@@ -29,18 +30,21 @@ namespace s21{
 
     template <typename T>
     class RedBlackTree: public Storage<T>{
+        private:
+            RBNode<T>* root_ = nullptr;
         public:
-            RedBlackTree{};
-            ~RedBlackTree();
+            RedBlackTree() = default;
+            ~RedBlackTree() = default;
             void printTree();
-            bool set(const string key, const T& element){
-                if (elements_.empty()){
-                    RBNode* newRBNode = new RBNode(key, element, BLACK);
-                    elements_.push_back(newRBNode);
+            bool set(const string key, const T& element, const std::optional<TimePoint> ttl = std::nullopt) override{
+                if (!root_){
+                    RBNode<T>* newRBNode = new RBNode<T>(key, element, BLACK);
+                    newRBNode->setTTL(ttl);
+                    root_ = newRBNode;
                     return true;
                 }
-                RBNode *P = nullptr;
-                RBNode *newPlace = elements_[0];
+                RBNode<T>* P = nullptr;
+                RBNode<T>* newPlace = root_;
                 while (newPlace != nullptr){
                     if (key > newPlace->key){
                         P = newPlace;
@@ -54,17 +58,16 @@ namespace s21{
                         return false;
                     }
                 }
-                RBNode* newRBNode = new RBNode(key, element, RED);
+                RBNode<T>* newRBNode = new RBNode<T>(key, element, RED);
                 newRBNode->parent = P;
-                newPlace = newRBNode;
-                validateRBNode(newPlace);
+                if (key < P->getKey()) {
+                    P->left = newRBNode;
+                } else {
+                    P->right = newRBNode;
+                }
+                validateRBNode(newRBNode);
                 return true;
             }
-            // absl::StatusOr<T> get(const string key){
-            //     Node<T>* n = getNode(key);
-            //     if (n == nullptr) return absl::NotFoundError("No record with this key");
-            //     return n->element;
-            // }
             bool del(const string key){
                 Node<T>* n = getNode(key);
                 if (n == nullptr) return false;
@@ -73,29 +76,37 @@ namespace s21{
             }
             bool update(const string key, const T& element)override{
                 Node<T>* n = getNode(key);
-                if (n == nullptr) return absl::NotFoundError("No record with this key");
-                n->element = element;
+                if (n == nullptr) return false;
+                n->setValue(element);
+                return true;
             }
             template <typename F> 
             bool update(const string key, const F& element){
                 Node<T>* n = getNode(key);
-                if (n == nullptr) return absl::NotFoundError("No record with this key");
+                if (n == nullptr) return false;
                 T prev = n->getValue();
                 prev = element;
                 n->setValue(prev);
                 return true;
             }
-            void ForEach(const std::function<void(RBNode<T>&)>& func) override{
-                for (auto &el : elements_){
-                    func(el);
+            void ForEach(const std::function<void(Node<T>&)>& func) override{
+                std::stack<RBNode<T>*> toVisit;
+                if (root_ != nullptr){
+                    toVisit.push(root_);
                 }
-            }
-        private:
-            std::vector<RBNode*> elements_;
-            void ForEach(F&& func) override{
-                for (auto& bucket : elements_) func(bucket);
+                while(!toVisit.empty()){
+                    RBNode<T>* curNode = toVisit.top();
+                    toVisit.pop();
+                    func(*curNode);
+                    if (curNode->left){
+                        toVisit.push(curNode->left);
+                    }
+                    if (curNode->right){
+                        toVisit.push(curNode->right);
+                    }
+                }
             };
-            template <typename T>
+        private:
             void rotateLeft(RBNode<T>* n){
                 if (n->right == nullptr) return; //нечего поворачивать
                 RBNode* P = n;
@@ -103,6 +114,7 @@ namespace s21{
                 RBNode* G = P->parent;
                 R->parent = G;
                 R->left = P;
+                R->parent = P->parent;
                 P->parent = R;
                 if (G == nullptr) return;
                 if (G->left == P){
@@ -111,15 +123,14 @@ namespace s21{
                     G->right = R;
                 }
             }
-            template <typename T>
             void rotateRight(RBNode<T>* n){
                 if (n->left == nullptr) return; //нечего поворачивать
-                RBNode* P = n;
-                RBNode* L = n->left;
-                RBNode* G = P->parent;
+                RBNode<T>* P = n;
+                RBNode<T>* L = n->left;
+                RBNode<T>* G = P->parent;
                 L->parent = G;
                 L->right = P;
-                P->parent = R;
+                P->parent = L;
                 if (G == nullptr) return;
                 if (G->left == P){
                     G->left = L;
@@ -127,43 +138,43 @@ namespace s21{
                     G->right = L;
                 }
             }
-            RBNode* getBrother(RBNode* n){
+            RBNode<T>* getBrother(RBNode<T>* n){
                 if (n == nullptr || n->parent == nullptr) return nullptr;
-                RBNode* P = n->parent;
+                RBNode<T>* P = n->parent;
                 if (P->left == n){
                     return P->right;
                 }
                 return P->left;
             }
 
-            RBNode* getUncle(RBNode* n){
+            RBNode<T>* getUncle(RBNode<T>* n){
                 if (n == nullptr || n->parent == nullptr || n->parent->parent == nullptr) return nullptr;
-                RBNode* P = n->parent;
-                RBNode* G = P->parent;
+                RBNode<T>* P = n->parent;
+                RBNode<T>* G = P->parent;
                 if (G->left == P){
                     return G->right;
                 }
                 return G->left;
             }
-            void validateRBNode(RBNode* n){
+            void validateRBNode(RBNode<T>* n){
                 if (n == nullptr || n->color == BLACK) return;
                 if (n->parent == nullptr){
                     n->color = BLACK;
                     return;
                 }
-                if (n->parent == BLACK) return;
-                RBNode* U = getUncle(n);
-                RBNode* P = n->parent;
-                RBNode* G = P->parent;
-                if (U->color == RED){
+                if (n->parent->color == BLACK) return;
+                RBNode<T>* U = getUncle(n);
+                RBNode<T>* P = n->parent;
+                RBNode<T>* G = P->parent;
+                if (U != nullptr && U->color == RED) {
                     P->color = BLACK;
                     U->color = BLACK;
                     G->color = RED;
-                    validateRBNode(G)
+                    validateRBNode(G);
                 }
                 else{
-                    left1 = false;
-                    left2 = false;
+                    bool left1 = false;
+                    bool left2 = false;
                     if (P->left == n){
                         left1 = true;
                     }
@@ -172,7 +183,7 @@ namespace s21{
                     }
                     if (left1 && left2){
                         rotateRight(G);
-                        p->color = BLACK;
+                        P->color = BLACK;
                         G->color = RED;
                     }
                     else if (left1 && !left2){
@@ -194,12 +205,8 @@ namespace s21{
                     }
                 }
             }
-            template <typename T>
             Node<T>* getNode(const string key){
-                if (elements_.empty()){
-                    return nullptr;
-                }
-                RBNode *curRBNode = elements_[0];
+                RBNode<T>* curRBNode = root_;
                 while (curRBNode != nullptr){
                     if (key > curRBNode->key){
                         curRBNode = curRBNode->right;
