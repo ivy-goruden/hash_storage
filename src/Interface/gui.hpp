@@ -19,7 +19,8 @@ class Gui{
         Gui(){
             string choice;
             while (true){
-                std::cout << "Select storage system:\n1. Hash_Map\n 2. RBTree\n> ";
+                std::cout << "Select storage system:\n1. Hash_Map\n2. RBTree\n> ";
+                std::cin >> choice;
                 if (choice == "1"){
                     c = std::make_unique<Controller>(std::make_unique<Hash_Map<User>>());
                     break;
@@ -34,6 +35,7 @@ class Gui{
         ~Gui() = default;
         void parseRequest(std::string request){
             vector<string> params = Parser::parseLine(request);
+            if (params.empty()) return;
             string com_val = params[0];
             if (commandsMap.find(com_val) == commandsMap.end()){
                 std::cout << "Wrong Command!" << std::endl;

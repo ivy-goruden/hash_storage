@@ -25,4 +25,12 @@ target_include_directories(RBTree INTERFACE ${PROG_CLASSES} ${PROG_INCLUDE})
 set_target_properties(hash_map PROPERTIES LINKER_LANGUAGE CXX)
 #добавляем директории наших подпроектов в область видимости CMake 
 add_executable(main src/main.cpp src/Interface/controller.cpp)
+# ───────── GoogleTest ─────────
+find_package(GTest REQUIRED)
+include(CTest)
+add_executable(test_model src/tests/console_test.cpp)
+target_include_directories(test_model PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_link_libraries(test_model PRIVATE RBTree absl::statusor GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(test_model)
 target_link_libraries(main PRIVATE RBTree absl::statusor)

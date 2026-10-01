@@ -119,7 +119,7 @@ bool Hash_Map<T>::update(const string key, const F& element){
     int index = hash % size_;
     for (Node<T>* node: elements_[index]){
         if (node->getKey() == key){
-            T prev = node->element;
+            T prev = node->getValue();
             prev = element;
             node->setValue(prev);
             return true;
