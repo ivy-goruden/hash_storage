@@ -44,7 +44,6 @@ class Hash_Map : public Storage<T>{
         bool del(const string key) override;
         template <typename F> 
         bool update(const string key, const F& element);
-        bool update(const string key, const T& element) override;
 };
 
 // Template implementations must be in header file
@@ -127,11 +126,6 @@ bool Hash_Map<T>::update(const string key, const F& element){
         }
     }
     return false;
-}
-
-template <typename T>
-bool Hash_Map<T>::update(const string key, const T& element){
-    return true;
 }
 
 #endif

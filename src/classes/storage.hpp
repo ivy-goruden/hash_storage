@@ -59,7 +59,13 @@ namespace s21{
                              const std::optional<TimePoint> ttl = std::nullopt) = 0;
             virtual Node<T>* getNode(const string key) = 0;
             virtual bool del(const string key) = 0;
-            virtual bool update(const string key, const T& element) = 0;
+            bool update(const string key, const T& element){
+                Node<T>* n = getNode(key);
+                if (n == nullptr) return false;
+                n->setValue(element);
+                return true;
+            
+            }
             virtual void ForEach(const std::function<void(Node<T>&)>& func) = 0;
         
         public:
